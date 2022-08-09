@@ -109,6 +109,7 @@ members = [
 ]
 
 [dependencies]
+encoding_gbk = { package = "encoding", version = "0.2"}
 # Internal libs
 codecs = { path = "lib/codecs", default-features = false }
 dnsmsg-parser = { path = "lib/dnsmsg-parser", optional = true }

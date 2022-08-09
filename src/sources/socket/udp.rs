@@ -1,6 +1,9 @@
 use std::net::SocketAddr;
 
+use encoding_gbk::all::GBK;
+use encoding_gbk::{Encoding, DecoderTrap};
 use bytes::{Bytes, BytesMut};
+use bytes::BufMut;
 use chrono::Utc;
 use codecs::{
     decoding::{DeserializerConfig, FramingConfig},
@@ -39,6 +42,8 @@ pub struct UdpConfig {
     #[serde(default = "crate::serde::default_max_length")]
     pub(super) max_length: usize,
 
+    /// has gbk,if has, decoding to utf-8
+    has_gbk: Option<bool>,
     /// Overrides the name of the log field used to add the peer host to each event.
     ///
     /// The value will be the peer host's address, including the port i.e. `1.2.3.4:9000`.
@@ -90,6 +95,7 @@ impl UdpConfig {
         Self {
             address,
             max_length: crate::serde::default_max_length(),
+            has_gbk: None,
             host_key: None,
             port_key: Some(String::from("port")),
             receive_buffer_bytes: None,
@@ -156,8 +162,16 @@ pub(super) fn udp(
 
                     emit!(BytesReceived { byte_size, protocol: "udp" });
 
-                    let payload = buf.split_to(byte_size);
+                    let mut payload = buf.split_to(byte_size);
                     let truncated = byte_size == max_length + 1;
+                    //type_of(&payload);
+                    if let Some(gbk) = &config.has_gbk {
+                        if *gbk {
+                            let decoded_string =GBK.decode(&payload, DecoderTrap::Strict).unwrap();
+                            payload.clear();
+                            payload.put(decoded_string.as_bytes());
+                        }
+                    }
 
                     let mut stream = FramedRead::new(payload.as_ref(), decoder.clone()).peekable();
 
